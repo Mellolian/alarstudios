@@ -1,0 +1,8 @@
+{% extends "base.html" %}
+
+{% block content %}
+{% if not cookie %}
+    <h1>Login page</h1>
+    <form method="post"><input type="text" name='username'> <input type="text" name='password'><input type="submit" value="Submit"></form>
+    {% endif %}
+{% endblock %}

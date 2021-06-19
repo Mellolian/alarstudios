@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+
+{% block content %}
+{% if data %}
+{% for str in data %}
+{% for id in str %}
+<h2>{{id}}</h2>
+{% endfor %}
+
+{% endfor %}
+
+{% endif %}
+
+
+
+
+
+
+{% endblock content %}
+
+
+
+
+
+
+

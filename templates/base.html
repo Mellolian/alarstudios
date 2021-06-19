@@ -1,0 +1,29 @@
+<html>
+    <head>
+      {% if title %}
+      <title>{{ title }} - Test</title>
+      {% else %}
+      <title>Welcome to Test</title>
+      {% endif %}
+    </head>
+    <body>
+    {% with messages= get_flashed_messages() %}
+    {% if messages %}
+    <ul class=flashes>
+    {% for message in messages %}
+      <li>{{ message }}</li>
+    {% endfor %}
+    </ul>
+  {% endif %}    
+    {% endwith %}
+        <div>Test: <a href={{ url_for('index') }}>Home</a>
+        <a href={{ url_for('json_getter') }}>JSON</a>
+        {% if not cookie %}<a href={{ url_for('login') }}>Login</a> <a href={{ url_for('register') }}>Register</a>{% endif %}
+        {% if cookie %}<a href={{ url_for('logout') }}>Logout</a>{% endif %}
+
+        </div>
+        
+        <hr>
+        {% block content %}{% endblock %}
+    </body>
+</html>
