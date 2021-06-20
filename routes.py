@@ -1,40 +1,24 @@
-from sqlalchemy.sql.expression import delete
 from app import app, db
 from flask import Flask, render_template, request, jsonify, url_for, redirect, flash, make_response, session
 from models import User
-from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import and_
 import json, aiohttp, asyncio
 
 
-async def fetch(session, url):
-    async with session.get(url) as response:
-        return await response.json()
-
-async def result():
-    tasks = []
-    URLS = ['http://127.0.0.1:5000/api/0', 'http://127.0.0.1:5000/api/1', 'http://127.0.0.1:5000/api/2']
-    async with aiohttp.ClientSession() as session:
-        for url in URLS:        
-            tasks.append(fetch(session, url))
-        htmls = await asyncio.gather(*tasks)
-    data = []
-    for lst in htmls:
-        data.extend(lst)
-    data = (sorted(data, key=lambda x: x.get('id')))
-    return jsonify(data)
-
-
+# Главная страница сайта с отображением списка пользователей, если пользователь залогинен
 app.config['SECRET_KEY'] = 'super secret'
-@app.route('/')
+@app.route('/', methods=['GET', 'POST'])
 @app.route('/index', methods=['GET', 'POST'])
 def index():
     users = User.query.all()
+    # SELECT username FROM public.users
     current_user = request.cookies.get('name')
     cookie = session.get('name')
     User.query.order_by(User.id.asc()).first().privileges = True
+    # 'UPDATE public.users SET privileges=true WHERE id = (SELECT id FROM public.users ORDER BY id ASC LIMIT 1)'
     db.session.commit()
     if (str(User.query.order_by(User.id.asc()).first()) == current_user):
+        # SELECT username FROM public.users ORDER BY id ASC LIMIT 1
         admin = True
     else:
         admin = False
@@ -42,35 +26,42 @@ def index():
     lst = []
     for i in range(len(users)):
         lst.append(str(users[i]))
-
-    if request.method == "POST":
+# добавление пользователя под записью администратора
+    if request.method == "POST" and admin:
         if 'username' in list(request.form.keys()):
             username = request.form.get("username")
             password = request.form.get("password")
-            check = User.query.filter(User.username==username).all()
+            check = User.query.filter(User.username==username).first()
+            # SELECT username FROM public.users WHERE username=username LIMIT 1
 
-            if not check:
+            if not check and username and password:
                 user = User(username=username, password=password)
                 db.session.add(user)
                 db.session.commit()
                 res = make_response("")
                 res.headers['location'] = url_for('index')
+                flash("You have added user successfully")  
                 return res, 302
-            else:
+            elif check and username:
                 flash('Login already in use')    
+                return redirect(url_for('index'))
+            elif not username or not password:
+                flash('Username and password required')    
                 return redirect(url_for('index'))
         else:
             user = list(request.form.keys())[0]
 
+            # удаление пользователя
             if user in lst and request.form.get((list(request.form.keys())[0])) == 'delete':
 
                 User.query.filter(User.username==user).delete()
+                # DELETE FROM public.users WHERE username='user'
 
                 db.session.commit()
                 res = make_response("")
                 res.headers['location'] = url_for('index')
                 return res, 302
-            
+            # редактирование пользователя (смена пароля)
             if user in lst and request.form.get((list(request.form.keys())[0])) == 'edit':
                 res = make_response("")
                 res.headers['location'] = url_for('edit',username=user)
@@ -78,6 +69,8 @@ def index():
  
     return render_template('index.html', title='Home', users=users, username=current_user, cookie=cookie, admin=admin)
 
+
+# обработка логина пользователя
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     name = session.get('name')
@@ -94,6 +87,7 @@ def login():
         
 
         check = User.query.filter(and_(User.username==username, User.password==password)).first()
+        # 'SELECT username FROM public.users username=username AND password=password ORDER BY id ASC LIMIT 1'
 
         if check:
             session['name'] = request.form.get('username')
@@ -106,6 +100,7 @@ def login():
 
     return render_template('login.html', title='Sign In')
 
+# регистрация пользователя
 @app.route('/register', methods=['GET', 'POST'])
 def register():
     name = session.get('name')
@@ -118,7 +113,8 @@ def register():
         username= request.form.get("username")
         password = request.form.get("password")
 
-        check = User.query.filter(User.username==username).all()
+        check = User.query.filter(User.username==username).first()
+        # SELECT * FROM public.users WHERE username=username LIMIT 1
         if not check:
             user = User(username=username, password=password)
             db.session.add(user)
@@ -130,6 +126,7 @@ def register():
 
     return render_template('register.html', title='Sign up')
 
+# выход из учетной записи
 @app.route('/logout')
 def logout():
     session['name'] = ''
@@ -138,17 +135,20 @@ def logout():
     res.headers['location'] = url_for('index')
     return res, 302
 
+# редактирование пользователя (смена пароля)
 @app.route('/edit/<username>', methods=['GET','POST'])
 def edit(username): 
     user = session.get('name')
     cookie = session.get('name')
     if (str(User.query.order_by(User.id.asc()).first()) == user):
+        # SELECT username FROM public.users ORDER BY id ASC LIMIT 1
         admin = True
     else:
         admin = False
-    if request.method == "POST":
+    if request.method == "POST" and admin:
         password = request.form.get("password")
         User.query.filter(User.username==username).update(dict(password=password))
+        # UPDATE public.users SET password=password WHERE username=username
         db.session.commit()
         res = make_response("")
 
@@ -157,41 +157,43 @@ def edit(username):
 
     return render_template('edit.html', title='Edit', admin=admin, cookie=cookie)
 
-@app.route('/add', methods=['GET','POST'])
-def add(): 
-    cookie = session.get('name')
-    if (str(User.query.order_by(User.id.asc()).first()) == cookie):
-        admin = True
-    else:
-        admin = False
+# асинхронная функция для получения данных из API в виде json
+async def fetch(session, url):
+    async with session.get(url) as response:
+        try:
+            return await asyncio.wait_for(response.json(), timeout=2)
+        except asyncio.TimeoutError:
+            return {}
+        except:
+            return {}
 
-    if request.method == "POST":
-        username= request.form.get("username")
-        password = request.form.get("password")
-
-        check = User.query.filter(User.username==username).all()
-        if not check:
-            user = User(username=username, password=password)
-            db.session.add(user)
-            db.session.commit()
-
-             
-            flash("You have added user successfully")    
-            return redirect(url_for('index'))
-        else:
-
-            flash('Login already in use')    
-            return redirect(url_for('add'))
-
-    return render_template('add.html', title='Sign up', cookie=cookie, admin=admin)
-  
-@app.route('/api/<id>',methods=['GET'])
-def json_list(id):
+# асинхронная функция для получения списка объектов и сортировки их по id
+async def result():
+    tasks = []
+    URLS = ['http://127.0.0.1:5000/api/0', 'http://127.0.0.1:5000/api/2', 'http://127.0.0.1:5000/api/2']
+    async with aiohttp.ClientSession() as session:
+        for url in URLS:        
+            tasks.append(fetch(session, url))
+        htmls = await asyncio.gather(*tasks)
     data = []
-    with open(f'data{id}.json', 'r') as f:
-        data = json.load(f)
+    for lst in htmls:
+        data.extend(lst)
+    data = (sorted(data, key=lambda x: x.get('id')))
     return jsonify(data)
 
+# вторая часть задания: псевдо-API
+@app.route('/api/<id>', methods=['GET'])
+def json_list(id):
+    data = []
+    try:
+        with open(f'data{id}.json', 'r') as f:
+            data = json.load(f)
+    except FileNotFoundError:
+        return {}
+
+    return jsonify(data)
+
+# вторая часть задания: получение информации из API
 @app.route('/json')
 def json_getter():
     asyncio.set_event_loop(asyncio.new_event_loop())
