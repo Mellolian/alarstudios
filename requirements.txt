@@ -9,6 +9,7 @@ click==8.0.1
 colorama==0.4.4
 Flask==1.1.2
 Flask-SQLAlchemy==2.5.1
+Flask-Migrate==3.0.1
 greenlet==1.1.0
 idna==2.10
 itsdangerous==2.0.1
