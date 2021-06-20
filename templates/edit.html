@@ -1,10 +1,10 @@
-{% extends "base.html" %}
-
-{% block content %}
-
-{% if admin %}
-    <h1>Edit page</h1>
-    <form method="post"><input type="text" name='password' placeholder='password'><input type="submit" value="Submit"></form>
-    {% endif %}
-
-{% endblock %}
+{% extends "base.html" %} {% block content %} {% if admin %}
+<h1>Edit page</h1>
+<form method="post">
+  <input type="text" name="password" placeholder="password" /><input
+    type="checkbox"
+    name="admin"
+    id="admin"
+  /><input type="submit" value="Submit" />
+</form>
+{% endif %} {% endblock %}

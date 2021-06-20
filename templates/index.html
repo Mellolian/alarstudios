@@ -1,17 +1,24 @@
-{% extends "base.html" %}
-
-{% block content %}
-
-{% if username %}<h3>Oh, hi {{username}}</h3> {% if admin %}<h3>You're wizard, {{username}}</h3>{% endif %}{% endif %}
-{% if cookie %}{% if users %}
-{% if admin %}<form method="post"><input type="text" name='username'> <input type="text" name='password'><input type='submit' value='add'></form>{% endif %}
-    {% for user in users %}
-    <h2>{{ user.username }} 
-    {% if admin %}
-    <form method="post"><input type='submit' name={{user.username}} value='delete'><input type='submit' name={{user.username}} value='edit'></form>
-    {% endif %}</h2>
-    {% endfor %}
-    
-    {% endif %}{% elif not cookie %} <h3>You should login to view the list</h3>{% endif %}
-
-{% endblock %}
+{% extends "base.html" %} {% block content %} {% if username %}
+<h3>Oh, hi {{username}}</h3>
+{% if admin %}
+<h3>You're wizard, {{username}}</h3>
+{% endif %}{% endif %} {% if cookie %}{% if users %} {% if admin %}
+<form method="post">
+  <input type="text" name="username" />
+  <input type="text" name="password" /><input type="submit" value="add" />
+</form>
+{% endif %} {% for user in users %}
+<h2>
+  {{ user.username }} {% if admin %}
+  <form method="post">
+    <input type="submit" name="{{user.username}}" value="delete" /><input
+      type="submit"
+      name="{{user.username}}"
+      value="edit"
+    />
+  </form>
+  {% endif %}
+</h2>
+{% endfor %} {% endif %}{% elif not cookie %}
+<h3>You should login to view the list</h3>
+{% endif %} {% endblock %}

@@ -16,6 +16,7 @@ app.config['SECRET_KEY'] = 'super secret'
 def index():
     users = User.query.all()
     # SELECT username FROM public.users
+
     current_user = request.cookies.get('name')
     cookie = session.get('name')
     if User.query.order_by(User.id.asc()).first():
@@ -25,9 +26,9 @@ def index():
         db.session.add(user)
     # 'UPDATE public.users SET privileges=true WHERE id = (SELECT id FROM public.users ORDER BY id ASC LIMIT 1)'
     db.session.commit()
-    if (str(User.query.order_by(User.id.asc()).first()) == current_user):
-        # SELECT username FROM public.users ORDER BY id ASC LIMIT 1
-        admin = True
+    if current_user and User.query.filter(User.username == current_user).first():
+        admin = User.query.filter(
+            User.username == current_user).first().privileges
     else:
         admin = False
 
@@ -154,15 +155,16 @@ def logout():
 def edit(username):
     user = session.get('name')
     cookie = session.get('name')
-    if (str(User.query.order_by(User.id.asc()).first()) == user):
-        # SELECT username FROM public.users ORDER BY id ASC LIMIT 1
-        admin = True
-    else:
-        admin = False
+    admin = User.query.filter(User.username == user).first().privileges
     if request.method == "POST" and admin:
+
         password = request.form.get("password")
+        set_admin = (request.form.get("admin") == 'on')
+        print(set_admin)
         User.query.filter(User.username == username).update(
-            dict(password=password))
+            dict(password=password, privileges=set_admin))
+        # User.query.filter(User.username == username).update(
+        #     dict(privileges=set_admin))
         # UPDATE public.users SET password=password WHERE username=username
         db.session.commit()
         res = make_response("")
